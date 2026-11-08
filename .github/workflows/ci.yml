@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  demo:
+    name: native, wasm, browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: alire-project/setup-alire@v5
+        with:
+          version: "2.1.1"
+
+      - name: Compilers and Chrome
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            gnat gprbuild rpm2cpio cpio lld libedit2
+          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/chrome.deb
+
+      - name: Native Ada logic
+        run: |
+          gprbuild -p -P swift_drive.gpr
+          obj/native/smoke
+
+      - name: WebAssembly page and browser
+        run: |
+          ./tools/get-toolchain.sh
+          ./build.sh
+          npm ci
+          node tests/logic_wasm.mjs
+          node tests/browser_demo.mjs
+
+      - name: Published folder is only the demo
+        run: |
+          test -f docs/index.html
+          test -f docs/.nojekyll
+          test ! -e docs/server.js
+          test "$(find docs -type f | wc -l)" = "2"

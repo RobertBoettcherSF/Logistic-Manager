@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Swift Drive — synthetic demo</title>
+<meta name="theme-color" content="#0a7a3e">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;font:15px/1.35 -apple-system,Roboto,Arial,sans-serif;color:#122;background:#f4f7f5}
+header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0a7a3e;color:#fff}
+.brand{font-size:18px;font-weight:700;flex:1}
+.brand b{color:#ffc800}
+.tag{background:#ffc800;color:#122;font-weight:800;font-size:12px;border-radius:999px;padding:3px 8px;letter-spacing:.04em}
+.banner{margin:0;padding:8px 12px;background:#fff3cd;color:#3a2a00;font-size:14px}
+.stage{flex:1;min-height:180px;position:relative;background:#e7efe8}
+#map{width:100%;height:100%;display:block}
+.note{margin:0;padding:4px 12px;background:#e7efe8;color:#345;font-size:12px}
+#sheet{max-height:58%;overflow:auto;padding:10px 12px 16px;background:#fff;box-shadow:0 -3px 10px rgba(0,0,0,.12)}
+h1{font-size:16px;margin:0 0 6px}
+.route{font-size:16px;margin:0 0 4px}
+.fare{font-size:22px;font-weight:800;color:#0a7a3e;margin:0}
+.who{margin:2px 0 8px}
+button.go{display:block;width:100%;margin:8px 0;padding:14px 12px;border:0;border-radius:12px;background:#ffc800;color:#122;font-size:18px;font-weight:800;cursor:pointer}
+button.go:disabled{opacity:.55;cursor:wait}
+#status{min-height:1.3em;font-weight:600}
+.card{border:1px solid #dde;border-radius:10px;padding:8px;margin:6px 0}
+.price{font-size:18px;font-weight:800;color:#0a7a3e}
+.sim{color:#567;font-size:12px}
+.ex{color:#a00;font-weight:800;font-size:12px}
+.ok{color:#0a7a3e;font-weight:700}
+.err{color:#900;font-weight:700}
+.fine{color:#678;font-size:12px}
+details{margin-top:10px}
+summary{cursor:pointer;font-weight:700}
+label{display:block;font-size:12px;color:#456;margin-top:6px}
+input,select{width:100%;font-size:16px;padding:7px;border:1px solid #bcc;border-radius:8px}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.svcbar{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.svc{border:2px solid #dde;background:#f7f9f8;border-radius:10px;padding:6px 8px}
+.svc.on{border-color:#0a7a3e;background:#e8f5ec;font-weight:700}
+button.sec{border:0;border-radius:10px;background:#e3e8e6;color:#122;padding:10px 12px;font-weight:700;margin-top:8px}
+.live{background:#f4f7f5;border-radius:8px;padding:6px 8px;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Swift<b>Drive</b></div>
+  <div class="tag" id="demoTag">DEMO</div>
+</header>
+<p class="banner" id="banner">DEMO — synthetic sample. Not a real booking, payment, or message.</p>
+<div class="stage"><canvas id="map" width="800" height="480"></canvas></div>
+<p class="note" id="offlineNote">Schematic map drawn on this page. No map tiles are loaded, and this file does not contact a server.</p>
+<section id="sheet">
+  <h1>Synthetic sample</h1>
+  <p class="route" id="routeLine"></p>
+  <p class="fare" id="fare"></p>
+  <p class="who">Sample driver <b id="sampleDriver"></b> · <span id="sampleNote"></span></p>
+  <p class="fine" id="minOffer"></p>
+  <button type="button" class="go" id="runSample" disabled>Run sample trip</button>
+  <p id="status" aria-live="polite"></p>
+  <p class="fine" id="covered"></p>
+  <p class="fine" id="agreed"></p>
+  <div id="offers"></div>
+  <p class="err" id="error"></p>
+  <p class="err" id="bootErr"></p>
+  <details id="more">
+    <summary>Try another synthetic route</summary>
+    <div class="svcbar" id="serviceBar"></div>
+    <div class="row">
+      <div><label for="pick">Pickup</label><select id="pick"></select></div>
+      <div><label for="dest">Destination</label><select id="dest"></select></div>
+    </div>
+    <div id="busBox" hidden><label for="seats">Seats (1–18)</label><input id="seats" type="number" min="1" max="18"></div>
+    <div id="sizeBox" hidden>
+      <label for="size">Parcel size</label>
+      <select id="size"><option value="0">small</option><option value="1">medium</option><option value="2">large</option></select>
+    </div>
+    <div id="phoneBox" hidden><label for="phone">Synthetic phone</label><input id="phone" type="tel" autocomplete="off"></div>
+    <div id="loadBox" hidden><label for="load">Load (synthetic)</label><input id="load" autocomplete="off"></div>
+    <div id="jetBox" hidden>
+      <p class="fine">Price on request. A simulated operator returns an example quote, not a real price.</p>
+      <div class="row">
+        <div><label for="jetFrom">From</label><select id="jetFrom"></select></div>
+        <div><label for="jetTo">To</label><select id="jetTo"></select></div>
+      </div>
+      <label for="pax">Passengers (1–12)</label><input id="pax" type="number" min="1" max="12">
+    </div>
+    <div id="groundBox">
+      <label for="offerIn">Your offer</label><input id="offerIn" type="number" step="50">
+      <p class="live">Module suggestion <b id="customFare"></b></p>
+    </div>
+    <button type="button" class="sec" id="requestCustom">Request selected route</button>
+  </details>
+  <p class="fine">Trip logic is Ada compiled to WebAssembly inside this file. JavaScript only draws the map and reads the buttons. Build <span id="build"></span>.</p>
+</section>
+<script>
+var WASM = "__WASM_BASE64__";
+var BUILD = "__BUILD_ID__";
+var ICONS = ["\uD83D\uDE97 ", "\uD83D\uDE8C ", "\uD83D\uDEF5 ", "\uD83D\uDE9A ", "\u2708 "];
+var STATUS = [
+  "Ready for a synthetic request",
+  "Looking for simulated drivers\u2026",
+  "Simulated drivers are offering",
+  "Offer accepted",
+  "Driver arriving",
+  "On trip",
+  "Done. Simulated cash only. Nothing was booked.",
+  "Cancelled"
+];
+var sd = null, timer = null, silent = false;
+var mapEl = document.getElementById("map");
+
+function decode(b64) {
+  var bin = atob(b64), n = bin.length, out = new Uint8Array(n), i;
+  for (i = 0; i < n; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function str0(lenF, charF) {
+  var n = lenF(), s = "", k;
+  for (k = 0; k < n; k++) s += String.fromCharCode(charF(k));
+  return s;
+}
+function stri(lenF, charF, i) {
+  var n = lenF(i), s = "", k;
+  for (k = 0; k < n; k++) s += String.fromCharCode(charF(i, k));
+  return s;
+}
+function naira(n) {
+  return "\u20A6" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c];
+  });
+}
+function placeName(i) { return stri(sd.sd_place_name_len, sd.sd_place_name_char, i); }
+
+function showBoxes(s) {
+  document.getElementById("busBox").hidden = s !== 1;
+  document.getElementById("sizeBox").hidden = s !== 2;
+  document.getElementById("phoneBox").hidden = !(s === 2 || s === 4);
+  document.getElementById("loadBox").hidden = s !== 3;
+  document.getElementById("jetBox").hidden = s !== 4;
+  document.getElementById("groundBox").hidden = s === 4;
+}
+function buildServices() {
+  var bar = document.getElementById("serviceBar"), h = "", i, cur = sd.sd_service();
+  for (i = 0; i < sd.sd_service_count(); i++) {
+    h += '<button type="button" class="svc' + (i === cur ? " on" : "") + '" data-svc="' + i + '">'
+      + ICONS[i] + esc(stri(sd.sd_service_name_len, sd.sd_service_name_char, i)) + "</button>";
+  }
+  bar.innerHTML = h;
+}
+function fillPlaces(sel, current) {
+  var h = "", i;
+  for (i = 0; i < sd.sd_place_count(); i++) {
+    if (!sd.sd_place_pickable(i)) continue;
+    h += '<option value="' + i + '"' + (i === current ? " selected" : "") + ">" + esc(placeName(i)) + "</option>";
+  }
+  sel.innerHTML = h;
+}
+function fillAirports() {
+  var h = "", i, name;
+  for (i = 0; i < sd.sd_airport_count(); i++) {
+    name = esc(stri(sd.sd_airport_name_len, sd.sd_airport_name_char, i));
+    h += '<option value="' + i + '">' + name + "</option>";
+  }
+  document.getElementById("jetFrom").innerHTML = h;
+  document.getElementById("jetTo").innerHTML = h;
+}
+function syncForm() {
+  silent = true;
+  buildServices();
+  fillPlaces(document.getElementById("pick"), sd.sd_pick());
+  fillPlaces(document.getElementById("dest"), sd.sd_dest());
+  document.getElementById("seats").value = String(sd.sd_seats());
+  document.getElementById("size").value = String(sd.sd_size());
+  document.getElementById("pax").value = String(sd.sd_pax());
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  document.getElementById("phone").value = str0(sd.sd_contact_len, sd.sd_contact_char);
+  document.getElementById("load").value = str0(sd.sd_load_len, sd.sd_load_char);
+  document.getElementById("jetFrom").value = String(sd.sd_from_airport());
+  document.getElementById("jetTo").value = String(sd.sd_to_airport());
+  showBoxes(sd.sd_service());
+  silent = false;
+}
+function setBuf(kind, text) {
+  var i;
+  if (kind === "contact") {
+    for (i = 0; i < text.length; i++) sd.sd_set_contact_char(i, text.charCodeAt(i));
+    sd.sd_set_contact_len(text.length);
+  } else {
+    for (i = 0; i < text.length; i++) sd.sd_set_load_char(i, text.charCodeAt(i));
+    sd.sd_set_load_len(text.length);
+  }
+}
+function pushForm() {
+  sd.sd_set_service(+document.querySelector("#serviceBar .svc.on").getAttribute("data-svc"));
+  sd.sd_set_pick(+document.getElementById("pick").value);
+  sd.sd_set_dest(+document.getElementById("dest").value);
+  sd.sd_set_seats(parseInt(document.getElementById("seats").value, 10) || 0);
+  sd.sd_set_size(+document.getElementById("size").value);
+  sd.sd_set_pax(parseInt(document.getElementById("pax").value, 10) || 0);
+  sd.sd_set_from_airport(+document.getElementById("jetFrom").value);
+  sd.sd_set_to_airport(+document.getElementById("jetTo").value);
+  setBuf("contact", document.getElementById("phone").value.replace(/\s/g, ""));
+  setBuf("load", document.getElementById("load").value);
+  sd.sd_set_offer(parseInt(document.getElementById("offerIn").value, 10) || 0);
+}
+function refresh() {
+  var n = sd.sd_route_len(), via = [], i, p, from, to, st, offers, h, name;
+  from = placeName(sd.sd_pick());
+  to = placeName(sd.sd_dest());
+  for (i = 1; i < n - 1; i++) {
+    p = sd.sd_route_place(i);
+    if (p >= 0) via.push(placeName(p));
+  }
+  document.getElementById("routeLine").textContent = from + " \u2192 " + to
+    + " \u00b7 " + sd.sd_distance_m() + " m schematic route"
+    + (via.length ? " via " + via.join(", ") : "");
+  document.getElementById("fare").textContent = naira(sd.sd_suggested());
+  document.getElementById("sampleDriver").textContent = str0(sd.sd_sample_driver_len, sd.sd_sample_driver_char);
+  document.getElementById("sampleNote").textContent = str0(sd.sd_sample_note_len, sd.sd_sample_note_char);
+  document.getElementById("minOffer").textContent = "Minimum offer " + naira(sd.sd_min_offer()) + " (70 percent of the suggestion).";
+  document.getElementById("banner").textContent = str0(sd.sd_banner_len, sd.sd_banner_char);
+  st = sd.sd_status();
+  document.getElementById("status").textContent = STATUS[st] || "";
+  if (sd.sd_leg_m() > 0 && st >= 4 && st <= 6) {
+    document.getElementById("covered").textContent = "Covered " + sd.sd_covered_m() + " m of " + sd.sd_leg_m() + " m on this leg.";
+  } else if (st === 2 && sd.sd_auto()) {
+    document.getElementById("covered").textContent = "This sample accepts the first simulated offer on its own.";
+  } else {
+    document.getElementById("covered").textContent = "";
+  }
+  document.getElementById("agreed").textContent = (st >= 3 && st !== 7) ? ("Agreed " + naira(sd.sd_price())) : "";
+  document.getElementById("customFare").textContent = naira(sd.sd_suggested());
+  document.getElementById("error").textContent = sd.sd_error() ? str0(sd.sd_error_len, sd.sd_error_char) : "";
+  offers = document.getElementById("offers");
+  h = "";
+  for (i = 0; i < sd.sd_offer_count(); i++) {
+    name = stri(sd.sd_offer_name_len, sd.sd_offer_name_char, i);
+    h += '<div class="card">';
+    if (sd.sd_offer_example(i)) h += '<div class="ex">' + esc(str0(sd.sd_quote_note_len, sd.sd_quote_note_char)) + "</div>";
+    h += esc(name);
+    if (sd.sd_offer_sim(i)) h += ' <span class="sim">(simulated)</span>';
+    h += '<div class="price">' + naira(sd.sd_offer_price(i)) + "</div>";
+    if (!sd.sd_auto() && st === 2) h += '<button type="button" class="sec" data-accept="' + i + '">Accept</button>';
+    if (sd.sd_offer_chosen(i)) h += '<div class="ok">Accepted</div>';
+    h += "</div>";
+  }
+  offers.innerHTML = h;
+}
+function cameraPoints() {
+  var pts = [], i, p, f, home;
+  for (i = 0; i < sd.sd_route_len(); i++) {
+    p = sd.sd_route_place(i);
+    if (p >= 0) pts.push([sd.sd_place_lat_u(p), sd.sd_place_lng_u(p)]);
+  }
+  f = sd.sd_focus_fleet();
+  if (f >= 0) {
+    home = sd.sd_fleet_home(f);
+    if (home >= 0) pts.push([sd.sd_place_lat_u(home), sd.sd_place_lng_u(home)]);
+    pts.push([sd.sd_fleet_lat_u(f), sd.sd_fleet_lng_u(f)]);
+  }
+  if (pts.length < 2) {
+    for (i = 0; i < sd.sd_place_count(); i++) {
+      if (sd.sd_place_pickable(i)) pts.push([sd.sd_place_lat_u(i), sd.sd_place_lng_u(i)]);
+    }
+  }
+  return pts;
+}
+function draw() {
+  var w = mapEl.width, h = mapEl.height, ctx = mapEl.getContext("2d");
+  var pts = cameraPoints(), minLat = 1e12, maxLat = -1e12, minLng = 1e12, maxLng = -1e12;
+  var i, lat, lng, spanLat, spanLng, pad, x, y, a, b, p, f, home;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#e7efe8";
+  ctx.fillRect(0, 0, w, h);
+  for (i = 0; i < pts.length; i++) {
+    if (pts[i][0] < minLat) minLat = pts[i][0];
+    if (pts[i][0] > maxLat) maxLat = pts[i][0];
+    if (pts[i][1] < minLng) minLng = pts[i][1];
+    if (pts[i][1] > maxLng) maxLng = pts[i][1];
+  }
+  spanLat = Math.max(maxLat - minLat, 8000);
+  spanLng = Math.max(maxLng - minLng, 8000);
+  minLat -= spanLat * 0.18; maxLat += spanLat * 0.18;
+  minLng -= spanLng * 0.18; maxLng += spanLng * 0.18;
+  pad = Math.max(16, Math.round(Math.min(w, h) * 0.06));
+  function xy(la, ln) {
+    return [
+      (ln - minLng) / (maxLng - minLng) * (w - pad * 2) + pad,
+      (maxLat - la) / (maxLat - minLat) * (h - pad * 2) + pad
+    ];
+  }
+  function inView(la, ln) {
+    return la >= minLat && la <= maxLat && ln >= minLng && ln <= maxLng;
+  }
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#c5d5c8";
+  ctx.lineWidth = Math.max(3, w / 180);
+  ctx.beginPath();
+  for (i = 0; i < sd.sd_edge_count(); i++) {
+    var la = sd.sd_place_lat_u(sd.sd_edge_a(i)), ln = sd.sd_place_lng_u(sd.sd_edge_a(i));
+    var lb = sd.sd_place_lat_u(sd.sd_edge_b(i)), nb = sd.sd_place_lng_u(sd.sd_edge_b(i));
+    if (!inView(la, ln) || !inView(lb, nb)) continue;
+    a = xy(la, ln);
+    b = xy(lb, nb);
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = "#0a7a3e";
+  ctx.lineWidth = Math.max(4, w / 110);
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  for (i = 0; i < sd.sd_route_len(); i++) {
+    p = sd.sd_route_place(i);
+    if (p < 0) continue;
+    a = xy(sd.sd_place_lat_u(p), sd.sd_place_lng_u(p));
+    if (i === 0) ctx.moveTo(a[0], a[1]); else ctx.lineTo(a[0], a[1]);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = Math.max(12, Math.round(w / 48)) + "px sans-serif";
+  ctx.textAlign = "center";
+  for (i = 0; i < sd.sd_place_count(); i++) {
+    a = xy(sd.sd_place_lat_u(i), sd.sd_place_lng_u(i));
+    if (a[0] < -20 || a[1] < -20 || a[0] > w + 20 || a[1] > h + 20) continue;
+    ctx.fillStyle = sd.sd_place_pickable(i) ? "#0a7a3e" : "#7a8f80";
+    ctx.beginPath();
+    ctx.arc(a[0], a[1], sd.sd_place_pickable(i) ? 5 : 3, 0, Math.PI * 2);
+    ctx.fill();
+    if (i === sd.sd_pick() || i === sd.sd_dest() || !sd.sd_place_pickable(i) && sd.sd_route_place && onRoute(i)) {
+      ctx.fillStyle = "#122";
+      ctx.fillText(placeName(i), a[0], a[1] - 8);
+    }
+  }
+  f = sd.sd_focus_fleet();
+  for (i = 0; i < sd.sd_fleet_count(); i++) {
+    lat = sd.sd_fleet_lat_u(i); lng = sd.sd_fleet_lng_u(i);
+    a = xy(lat, lng);
+    if (a[0] < -30 || a[1] < -30 || a[0] > w + 30 || a[1] > h + 30) continue;
+    ctx.beginPath();
+    ctx.fillStyle = i === f ? "#ffc800" : "#fff";
+    ctx.strokeStyle = "#122";
+    ctx.lineWidth = 2;
+    ctx.arc(a[0], a[1], i === f ? 9 : 5, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    if (i === f) {
+      ctx.fillStyle = "#122";
+      ctx.fillText(stri(sd.sd_fleet_name_len, sd.sd_fleet_name_char, i), a[0], a[1] + 22);
+    }
+  }
+  function onRoute(node) {
+    var k;
+    for (k = 0; k < sd.sd_route_len(); k++) if (sd.sd_route_place(k) === node) return true;
+    return false;
+  }
+}
+function resize() {
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var r = mapEl.getBoundingClientRect();
+  mapEl.width = Math.max(2, Math.round(r.width * dpr));
+  mapEl.height = Math.max(2, Math.round(r.height * dpr));
+  if (sd) draw();
+}
+function stop() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
+function play() {
+  var btn = document.getElementById("runSample");
+  stop();
+  btn.disabled = true;
+  btn.textContent = "Sample trip running\u2026";
+  timer = setInterval(function () {
+    var st = sd.sd_tick();
+    refresh();
+    draw();
+    if (st === 6 || st === 7) {
+      stop();
+      btn.disabled = false;
+      btn.textContent = "Run sample trip again";
+    }
+  }, 100);
+}
+function boot() {
+  window.sd = sd;
+  window.__wasmReady = true;
+  sd.sd_load_sample();
+  document.getElementById("build").textContent = BUILD;
+  fillAirports();
+  syncForm();
+  refresh();
+  resize();
+  document.getElementById("runSample").disabled = false;
+}
+document.getElementById("runSample").onclick = function () {
+  var code;
+  stop();
+  code = sd.sd_start_sample();
+  syncForm();
+  refresh();
+  draw();
+  if (code === 0) play();
+};
+document.getElementById("requestCustom").onclick = function () {
+  var code;
+  stop();
+  document.getElementById("runSample").disabled = false;
+  document.getElementById("runSample").textContent = "Run sample trip";
+  pushForm();
+  code = sd.sd_request();
+  refresh();
+  draw();
+  if (code === 0 && sd.sd_auto && sd.sd_auto()) play();
+};
+document.getElementById("serviceBar").onclick = function (e) {
+  var b = e.target, s;
+  while (b && b !== this && !(b.getAttribute && b.getAttribute("data-svc") != null)) b = b.parentNode;
+  if (!b || !b.getAttribute) return;
+  if (silent) return;
+  s = +b.getAttribute("data-svc");
+  sd.sd_set_service(s);
+  showBoxes(s);
+  buildServices();
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  refresh();
+  draw();
+};
+document.getElementById("pick").onchange = function () {
+  if (silent) return;
+  sd.sd_set_pick(+this.value);
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  refresh(); draw();
+};
+document.getElementById("dest").onchange = function () {
+  if (silent) return;
+  sd.sd_set_dest(+this.value);
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  refresh(); draw();
+};
+document.getElementById("seats").oninput = function () {
+  if (silent) return;
+  sd.sd_set_seats(parseInt(this.value, 10) || 0);
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  refresh();
+};
+document.getElementById("size").onchange = function () {
+  if (silent) return;
+  sd.sd_set_size(+this.value);
+  document.getElementById("offerIn").value = String(sd.sd_offer());
+  refresh();
+};
+document.getElementById("offerIn").oninput = function () {
+  if (silent) return;
+  sd.sd_set_offer(parseInt(this.value, 10) || 0);
+  refresh();
+};
+document.getElementById("offers").onclick = function (e) {
+  var b = e.target;
+  while (b && b !== this && !(b.getAttribute && b.getAttribute("data-accept") != null)) b = b.parentNode;
+  if (!b || !b.getAttribute) return;
+  sd.sd_accept(+b.getAttribute("data-accept"));
+  refresh();
+  draw();
+  play();
+};
+window.addEventListener("resize", resize);
+document.getElementById("build").textContent = BUILD;
+WebAssembly.instantiate(decode(WASM)).then(function (r) {
+  sd = r.instance.exports;
+  boot();
+}).catch(function (e) {
+  document.getElementById("bootErr").textContent = "The Ada module did not start. " + e;
+});
+</script>
+</body>
+</html>

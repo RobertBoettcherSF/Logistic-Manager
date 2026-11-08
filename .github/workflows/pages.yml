@@ -1,0 +1,81 @@
+# Publishes docs/ only: the self-contained demo page.
+# Does not upload server/, the two-phone relay, or the rest of the repo.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: alire-project/setup-alire@v5
+        with:
+          version: "2.1.1"
+
+      - name: Build the demo page
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            gnat gprbuild rpm2cpio cpio lld libedit2
+          gprbuild -p -P swift_drive.gpr
+          obj/native/smoke
+          ./tools/get-toolchain.sh
+          ./build.sh
+          test -f docs/index.html
+          test -f docs/.nojekyll
+          test ! -e docs/server.js
+          test "$(find docs -type f | wc -l)" = "2"
+          python3 - << 'PY'
+          from pathlib import Path
+          text = Path("docs/index.html").read_text(encoding="utf-8")
+          wasm = text.split('var WASM = "', 1)[1].split('"', 1)[0]
+          import base64
+          raw = base64.b64decode(wasm)
+          if raw[:4] != b"\0asm":
+              raise SystemExit("embedded wasm magic missing")
+          for word in ("api/report", "openstreetmap", "server.js"):
+              if word in text:
+                  raise SystemExit("demo page contains " + word)
+          PY
+
+      # enablement stays false. actions/configure-pages says enablement
+      # needs a token other than GITHUB_TOKEN (a GitHub App also needs
+      # administration:write). This job's token only has pages:write and
+      # id-token:write, which can deploy a site an admin already turned on
+      # under Settings → Pages → GitHub Actions. It cannot create that site.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: false
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

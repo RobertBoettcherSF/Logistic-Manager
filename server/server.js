@@ -1,4 +1,6 @@
 // Swift Drive v0.1 tiny backend: static files + REST + WebSocket relay. No dependencies.
+// Local use only. There is no authentication. Do not deploy this process on a
+// public host: /api/state, /api/reports and /api/reset are open.
 // Run: node server/server.js   (PORT env, default 8787)
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
