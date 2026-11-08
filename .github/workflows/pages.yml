@@ -56,9 +56,14 @@ jobs:
                   raise SystemExit("demo page contains " + word)
           PY
 
+      # enablement stays false. actions/configure-pages says enablement
+      # needs a token other than GITHUB_TOKEN (a GitHub App also needs
+      # administration:write). This job's token only has pages:write and
+      # id-token:write, which can deploy a site an admin already turned on
+      # under Settings → Pages → GitHub Actions. It cannot create that site.
       - uses: actions/configure-pages@v5
         with:
-          enablement: true
+          enablement: false
 
       - uses: actions/upload-pages-artifact@v3
         with:

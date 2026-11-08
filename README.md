@@ -4,11 +4,13 @@ Customer demo for a Benin City ride. The trip logic is Ada, compiled to WebAssem
 
 ## Open the demo
 
-**Visitor page, once the Pages workflow has deployed `main`:**
+**Visitor page, only after an admin enables Pages and the workflow has deployed `main`:**
 
 https://robertboettchersf.github.io/Logistic-Manager/
 
-Pages is not switched on in the repository settings by a hand edit. `.github/workflows/pages.yml` publishes **only** `docs/` the first time it runs on `main`. Until that deploy exists, open the built file directly:
+That URL is not live yet. Pages is off on this repository. The workflow's `GITHUB_TOKEN` has `pages: write` and `id-token: write`, which is enough to upload and deploy a site that already exists. It is not enough to turn Pages on. `actions/configure-pages` documents that `enablement: true` needs a token other than `GITHUB_TOKEN` (a GitHub App needs `administration: write` as well as `pages: write`). This workflow does not do that, and it does not change repository settings.
+
+An admin has to open **Settings → Pages** and set the source to **GitHub Actions** before `.github/workflows/pages.yml` can deploy. Until then, open the built file directly:
 
 `docs/index.html`
 
@@ -50,7 +52,9 @@ Artifact: `docs/index.html` (the WebAssembly module is inside that file).
 
 ## Pages
 
-Do not point GitHub Pages at the repository root. That would publish `server/server.js` and the two-phone prototype. The workflow uploads `docs/` and nothing else: `index.html` and `.nojekyll`.
+Do not point GitHub Pages at the repository root. That would publish `server/server.js` and the two-phone prototype. The workflow uploads `docs/` and nothing else: `index.html` and `.nojekyll`. It checks that those are the only two files and that the page contains no `server.js`, `api/report`, or `openstreetmap`.
+
+The workflow does not enable Pages by itself. See the note under "Open the demo".
 
 ## Do not deploy the local relay
 
