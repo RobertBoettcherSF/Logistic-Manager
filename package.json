@@ -1,0 +1,12 @@
+{
+  "name": "logistic-manager",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:logic": "node tests/logic_wasm.mjs",
+    "test:browser": "node tests/browser_demo.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.0"
+  }
+}

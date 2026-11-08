@@ -1,2 +1,5 @@
 server/reports/
 node_modules/
+toolchain/
+obj/
+/smoke
